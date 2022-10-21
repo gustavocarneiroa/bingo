@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        * {
+            font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-evenly;
+            align-items: flex-start;
+        }
+
+        .collumn {
+            display: flex;flex-direction: column;
+        }
+
+        .spread-items-evenly {
+            display: flex;align-items: center;justify-content: space-evenly;
+        }
+
+        .block {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid black;
+        }
+
+        .block:hover{
+            cursor: default;
+        }
+
+        .bg-yellow {
+            background-color: yellow;
+            color: black
+        }
+
+        .bg-red {
+            background-color: red;
+            color: white;
+        }
+
+        .bg-green {
+            background-color: green;
+            color: white;
+        }
+
+        .bg-gray {
+            background-color: gray;
+            color: black;
+        }
+
+        .bold {
+            font-weight: bolder;
+        }
+
+    </style>
+
+</head>
+<body>
+    <div id="app">
+        <div>Números chamados: {{ calledNumbers }}</div>
+        <div id="container">
+        <div>
+            <div>
+                <input type="range" v-model="total" min="25" max="100" step="5" :disabled="disabledRange">
+                <p>
+                    {{ total }}
+                </p>
+                <button @click="generateNumbers">Gerar</button>
+                <button @click="resetBingo">Resetar</button>
+
+                <br><br><br><br>
+            </div>
+            <br><br>
+            <br><br>
+            <div class="collumn">
+                <div class="spread-items-evenly">
+                    <div v-for="letter in 'BINGO'" class="block bg-yellow bold">{{ letter }}</div>
+                </div>
+                <div  class="spread-items-evenly">
+                    <div v-for="numberChunk of numbers">
+                            <div v-for="number of numberChunk">
+                                <div v-if="calledNumbers.includes(number) && calledNumbers.at(-1) === number" class="block bg-red bold">{{ number }}</div>
+                                <div v-else-if="calledNumbers.includes(number)" class="block bg-green bold"> {{ number }} </div>
+                                <div v-else @click="callNumber(number)" class="block">{{ number }}</div>
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <template v-if="gameEnds">
+            <div>
+                <div v-for="(bingo, index) in bingos" style="margin: 10%">
+                    <div class="spread-items-evenly" v-for="numberChunk of bingo">
+                        <template v-if="winner.index == index">
+                            <div v-for="number of numberChunk">
+                                <div v-if="isNaN(Number(number))" class="block" :class="{ 'bg-yellow': winner.numbers.includes(number) }" style="font-size:8px"> {{ number }}</div>
+                                <div v-else-if="calledNumbers.includes(number) && winner.numbers.includes(number)" class="block bg-yellow bold" >  {{ number }} </div>
+                                <div v-else-if="calledNumbers.includes(number)" class="block bg-green bold">  {{ number }} </div>
+                                <div v-else class="block">{{ number }}</div>
+                            </div>
+                        </template>
+
+                        <template v-else>
+                            <div v-for="number of numberChunk">
+                                <div v-if="isNaN(Number(number))" class="block" style="font-size:8px"> {{ number }}</div>
+                                <div v-else-if="calledNumbers.includes(number)" class="block bg-gray bold"> {{ number }} </div>
+                                <div v-else class="block">{{ number }}</div>
+                            </div>
+                        </template>
+                    </div>              
+                </div>
+            </div>
+        </template>
+
+        <template v-else>
+            <div>
+                <div v-for="bingo in bingos" style="margin: 10%">
+                    <div class="spread-items-evenly" v-for="numberChunk of bingo">
+                        <div v-for="number of numberChunk">
+                            <div v-if="isNaN(Number(number))" class="block" style="font-size:8px"> {{ number }}</div>
+                            <div v-else-if="calledNumbers.includes(number)" class="block bg-green bold"> {{ number }} </div>
+                            <div v-else class="block">{{ number }}</div>
+                        </div>
+                    </div>              
+                </div>
+            </div>
+        </template>
+    </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.13/dist/vue.js"></script>
+
+    <script>
+        const chunkify = function* (itr, size) {
+            let chunk = [];
+            for (const v of itr) {
+                chunk.push(v);
+                if (chunk.length === size) {
+                yield chunk;
+                chunk = [];
+                }
+            }
+            if (chunk.length) yield chunk;
+        };
+
+        new Vue({
+            el: '#app',
+            data: {
+                total: 25,
+                disabledRange: false,
+                numbers: [],
+                calledNumbers: [],
+                bingos: [],
+                gameEnds: false,
+                winner: {
+                    index: null,
+                    numbers: []
+                }
+            },
+            methods: {
+                generateNumbers() {
+                    if(Number(this.total) <= 25) {
+                        return alert('Escolha um número maior que 25');
+                    }
+
+                    generatedArray = [...Array(Number(this.total)).keys()].map( n => n+1);
+                    this.numbers = [...chunkify(generatedArray, this.total / 5)];
+                    this.disabledRange = true;
+
+                    this.generateBingo()
+                    this.generateBingo()
+                },
+                callNumber(number) {
+                    if(this.gameEnds) return;
+
+                    this.calledNumbers.push(number);
+                    this.verifyWin()
+                },
+
+                resetBingo() {
+                    this.total = 25
+                    this.disabledRange = false
+                    this.numbers = []
+                    this.calledNumbers = []
+                    this.bingos = []
+                    this.gameEnds = false;
+                    this. winner = {
+                        index: null,
+                        numbers: []
+                    }
+                },
+
+                generateBingo() {
+
+                    const bingo = [ ...chunkify(this.getRandomUniqueNumbers(), 5) ];
+                    bingo[2][2] = 'Bingo'
+                    this.bingos.push(bingo)
+
+                },
+
+                getRandomUniqueNumbers(){
+                    const numbers = [...Array(Number(this.total)).keys()].map( n => n+1);
+                    numbers.sort(() => Math.random() - 0.5);
+                    return numbers.slice(0, 25);
+                },
+
+                compareArrayWithin(index, arrayToLoop, timesToLoop, name, mustMapIterating = false ){
+                    for( let i = 0; i < timesToLoop; i++ ) {
+                        let loopToCheck = mustMapIterating ? arrayToLoop.map(a => a[i]) : arrayToLoop[i];
+                        console.log(`Verificando Bingo[${index}], ${name} ${i}: ` + loopToCheck);
+
+                        const filterBingo = loopToCheck.includes('Bingo') ?
+                            loopToCheck.filter( c => c !== 'Bingo') :
+                            loopToCheck
+                        ;
+                        
+
+                        const loopVerified = filterBingo.every( c => this.calledNumbers.includes(c));
+
+                        if(loopVerified) {
+                            alert('Temos um vencedor!')
+                            this.gameEnds = true;
+
+                            this.paintNumbers(index, loopToCheck); 
+                        }
+                    }
+                },
+
+
+                verifyWin() {
+                    if(this.calledNumbers.length >= 4) {
+                        this.bingos.forEach( (bingo, bingoIndex) => {
+                            /* Coluna */
+                            this.compareArrayWithin(bingoIndex, bingo, bingo[0].length, 'coluna', true);
+
+                            /* Linha */
+                            this.compareArrayWithin(bingoIndex, bingo, bingo.length, 'linha');
+
+                            /* Diagonais */
+                            const diagonals = [
+                                [bingo[0][0], bingo[1][1], bingo[2][2], bingo[3][3], bingo[4][4]],
+                                [bingo[0][4], bingo[1][3], bingo[2][2], bingo[3][1], bingo[4][0]]
+                            ];
+
+                            this.compareArrayWithin(bingoIndex, diagonals, diagonals.length, 'diagonal');
+
+                            /* Quatro cantos*/
+                            const corners = [
+                                [bingo[0][0], bingo[0][4], bingo[4][0], bingo[4][4]]
+                            ]
+
+                            this.compareArrayWithin(bingoIndex, corners, corners.length, 'cantos');
+
+                        })
+                    } else {
+                        console.log('Ainda é muito cedo para identificar vencedores')
+                    }
+                },
+
+                paintNumbers(index, winnerNumbers) {
+                    this.winner.index = index;
+                    this.winner.numbers = winnerNumbers;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
